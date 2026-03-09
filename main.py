@@ -13,10 +13,9 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ---------------- SAFE AI RUNNER (ANTI FREEZE) ---------------- #
+# ---------------- SAFE AI RUNNER ---------------- #
 
 async def run_ai_model(model, inputs):
-
     try:
         output = replicate.run(model, input=inputs)
 
@@ -24,9 +23,9 @@ async def run_ai_model(model, inputs):
             return None
 
         if isinstance(output, list):
-            return output[0]
+            return output
 
-        return output
+        return [output]
 
     except Exception as e:
         print("AI Error:", e)
@@ -59,11 +58,26 @@ def create_grid(image_urls):
     return path
 
 
-# ---------------- BOT READY ---------------- #
+# ---------------- READY ---------------- #
 
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}")
+
+
+# ---------------- ERROR HANDLER ---------------- #
+
+@bot.event
+async def on_command_error(ctx, error):
+
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("⚠️ You forgot the prompt.")
+
+    elif isinstance(error, commands.CommandNotFound):
+        pass
+
+    else:
+        print(error)
 
 
 # ---------------- BUTTON VIEW ---------------- #
@@ -75,38 +89,36 @@ class GridButtons(discord.ui.View):
         self.prompt = prompt
         self.images = images
 
-    async def upscale_image(self, interaction, index):
+    async def upscale(self, interaction, index):
 
-        await interaction.response.send_message("Upscaling image... 🔍")
-
-        img = self.images[index]
+        await interaction.response.send_message("Upscaling...")
 
         output = await run_ai_model(
             "nightmareai/real-esrgan",
-            {"image": img, "scale": 4}
+            {"image": self.images[index], "scale": 4}
         )
 
         if not output:
             await interaction.followup.send("Upscale failed.")
             return
 
-        await interaction.followup.send(output)
+        await interaction.followup.send(output[0])
 
     async def variation(self, interaction):
 
-        await interaction.response.send_message("Generating variation... 🎨")
+        await interaction.response.send_message("Generating variations...")
 
         images = []
 
         for i in range(4):
 
-            output = await run_ai_model(
+            out = await run_ai_model(
                 "black-forest-labs/flux-schnell",
                 {"prompt": self.prompt}
             )
 
-            if output:
-                images.append(output)
+            if out:
+                images.append(out[0])
 
         if len(images) < 4:
             await interaction.followup.send("Variation failed.")
@@ -117,39 +129,39 @@ class GridButtons(discord.ui.View):
         await interaction.followup.send(file=discord.File(grid))
 
     @discord.ui.button(label="U1", style=discord.ButtonStyle.green)
-    async def u1(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.upscale_image(interaction,0)
+    async def u1(self, interaction, button):
+        await self.upscale(interaction,0)
 
     @discord.ui.button(label="U2", style=discord.ButtonStyle.green)
-    async def u2(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.upscale_image(interaction,1)
+    async def u2(self, interaction, button):
+        await self.upscale(interaction,1)
 
     @discord.ui.button(label="U3", style=discord.ButtonStyle.green)
-    async def u3(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.upscale_image(interaction,2)
+    async def u3(self, interaction, button):
+        await self.upscale(interaction,2)
 
     @discord.ui.button(label="U4", style=discord.ButtonStyle.green)
-    async def u4(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.upscale_image(interaction,3)
+    async def u4(self, interaction, button):
+        await self.upscale(interaction,3)
 
     @discord.ui.button(label="V1", style=discord.ButtonStyle.blurple)
-    async def v1(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def v1(self, interaction, button):
         await self.variation(interaction)
 
     @discord.ui.button(label="V2", style=discord.ButtonStyle.blurple)
-    async def v2(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def v2(self, interaction, button):
         await self.variation(interaction)
 
     @discord.ui.button(label="V3", style=discord.ButtonStyle.blurple)
-    async def v3(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def v3(self, interaction, button):
         await self.variation(interaction)
 
     @discord.ui.button(label="V4", style=discord.ButtonStyle.blurple)
-    async def v4(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def v4(self, interaction, button):
         await self.variation(interaction)
 
     @discord.ui.button(label="🔄", style=discord.ButtonStyle.red)
-    async def regen(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def regen(self, interaction, button):
 
         await interaction.response.send_message("Regenerating...")
 
@@ -157,17 +169,13 @@ class GridButtons(discord.ui.View):
 
         for i in range(4):
 
-            output = await run_ai_model(
+            out = await run_ai_model(
                 "black-forest-labs/flux-schnell",
                 {"prompt": self.prompt}
             )
 
-            if output:
-                images.append(output)
-
-        if len(images) < 4:
-            await interaction.followup.send("Regeneration failed.")
-            return
+            if out:
+                images.append(out[0])
 
         grid = create_grid(images)
 
@@ -217,17 +225,13 @@ async def imagine(ctx, *, prompt):
 
     for i in range(4):
 
-        output = await run_ai_model(
+        out = await run_ai_model(
             "black-forest-labs/flux-schnell",
             {"prompt": prompt}
         )
 
-        if output:
-            images.append(output)
-
-    if len(images) < 4:
-        await ctx.send("Generation failed.")
-        return
+        if out:
+            images.append(out[0])
 
     grid = create_grid(images)
 
@@ -236,7 +240,7 @@ async def imagine(ctx, *, prompt):
     await ctx.send("Options:", view=GridButtons(prompt, images))
 
 
-# ---------------- HIGH QUALITY ---------------- #
+# ---------------- HQ GENERATION ---------------- #
 
 @bot.command()
 async def imaginehq(ctx, *, prompt):
@@ -247,24 +251,20 @@ async def imaginehq(ctx, *, prompt):
 
     for i in range(4):
 
-        output = await run_ai_model(
+        out = await run_ai_model(
             "black-forest-labs/flux-dev",
             {"prompt": prompt}
         )
 
-        if output:
-            images.append(output)
-
-    if len(images) < 4:
-        await ctx.send("HQ generation failed.")
-        return
+        if out:
+            images.append(out[0])
 
     grid = create_grid(images)
 
     await ctx.send(file=discord.File(grid))
 
 
-# ---------------- MIX ---------------- #
+# ---------------- MIX (IMPROVED) ---------------- #
 
 @bot.command()
 async def mix(ctx, *, prompt):
@@ -273,21 +273,39 @@ async def mix(ctx, *, prompt):
         await ctx.send("Attach TWO images.")
         return
 
-    img1 = ctx.message.attachments[0].url
-    img2 = ctx.message.attachments[1].url
+    img1_url = ctx.message.attachments[0].url
+    img2_url = ctx.message.attachments[1].url
 
     await ctx.send("Mixing images...")
 
-    output = await run_ai_model(
-        "black-forest-labs/flux-dev",
-        {"prompt": prompt, "image": img1, "image2": img2}
+    img1 = Image.open(BytesIO(requests.get(img1_url).content))
+    img2 = Image.open(BytesIO(requests.get(img2_url).content))
+
+    img1 = img1.resize((512,512))
+    img2 = img2.resize((512,512))
+
+    combined = Image.new("RGB",(1024,512))
+
+    combined.paste(img1,(0,0))
+    combined.paste(img2,(512,0))
+
+    path = "mix.jpg"
+    combined.save(path)
+
+    out = await run_ai_model(
+        "stability-ai/sdxl",
+        {
+            "image": open(path,"rb"),
+            "prompt": prompt,
+            "strength":0.7
+        }
     )
 
-    if not output:
+    if not out:
         await ctx.send("Mix failed.")
         return
 
-    await ctx.send(output)
+    await ctx.send(out[0])
 
 
 # ---------------- IMAGE EDIT ---------------- #
@@ -295,7 +313,7 @@ async def mix(ctx, *, prompt):
 @bot.command()
 async def accurateedit(ctx, *, prompt):
 
-    if len(ctx.message.attachments) == 0:
+    if not ctx.message.attachments:
         await ctx.send("Attach image.")
         return
 
@@ -303,16 +321,16 @@ async def accurateedit(ctx, *, prompt):
 
     await ctx.send("Editing image...")
 
-    output = await run_ai_model(
+    out = await run_ai_model(
         "stability-ai/sdxl",
-        {"image": img, "prompt": prompt, "strength": 0.4}
+        {"image": img, "prompt": prompt}
     )
 
-    if not output:
+    if not out:
         await ctx.send("Edit failed.")
         return
 
-    await ctx.send(output)
+    await ctx.send(out[0])
 
 
 # ---------------- FACE EDIT ---------------- #
@@ -320,7 +338,7 @@ async def accurateedit(ctx, *, prompt):
 @bot.command()
 async def editface(ctx, *, prompt):
 
-    if len(ctx.message.attachments) == 0:
+    if not ctx.message.attachments:
         await ctx.send("Attach image.")
         return
 
@@ -328,16 +346,16 @@ async def editface(ctx, *, prompt):
 
     await ctx.send("Editing face...")
 
-    output = await run_ai_model(
+    out = await run_ai_model(
         "stability-ai/sdxl",
         {"image": img, "prompt": prompt + ", focus on face"}
     )
 
-    if not output:
+    if not out:
         await ctx.send("Face edit failed.")
         return
 
-    await ctx.send(output)
+    await ctx.send(out[0])
 
 
 # ---------------- FACE SWAP ---------------- #
@@ -354,16 +372,19 @@ async def faceswap(ctx):
 
     await ctx.send("Swapping faces...")
 
-    output = await run_ai_model(
-        "arielreplicate/inswapper",
-        {"target_image": target, "swap_image": face}
+    out = await run_ai_model(
+        "cjwbw/inswapper",
+        {
+            "target_image": target,
+            "swap_image": face
+        }
     )
 
-    if not output:
+    if not out:
         await ctx.send("Face swap failed.")
         return
 
-    await ctx.send(output)
+    await ctx.send(out[0])
 
 
 # ---------------- UPSCALE ---------------- #
@@ -371,7 +392,7 @@ async def faceswap(ctx):
 @bot.command()
 async def upscale(ctx):
 
-    if len(ctx.message.attachments) == 0:
+    if not ctx.message.attachments:
         await ctx.send("Attach image.")
         return
 
@@ -379,16 +400,16 @@ async def upscale(ctx):
 
     await ctx.send("Upscaling...")
 
-    output = await run_ai_model(
+    out = await run_ai_model(
         "nightmareai/real-esrgan",
         {"image": img, "scale": 4}
     )
 
-    if not output:
+    if not out:
         await ctx.send("Upscale failed.")
         return
 
-    await ctx.send(output)
+    await ctx.send(out[0])
 
 
 # ---------------- RUN BOT ---------------- #
