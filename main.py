@@ -17,7 +17,7 @@ async def ping(ctx):
     await ctx.send("Pong!")
 
 @bot.command()
-async def remix(ctx):
+async def remix(ctx, *, prompt="mix these images"):
     if len(ctx.message.attachments) < 2:
         await ctx.send("Attach 2 images with the command.")
         return
@@ -27,14 +27,18 @@ async def remix(ctx):
 
     await ctx.send("Generating AI remix... 🎨")
 
-    output = replicate.run(
-        "stability-ai/sdxl",
-        input={
-            "image": img1,
-            "prompt": f"make this image look like the style of {img2}"
-        }
-    )
+    try:
+        output = replicate.run(
+            "stability-ai/sdxl",
+            input={
+                "image": img1,
+                "prompt": f"{prompt}, inspired by the style of this second image: {img2}"
+            }
+        )
 
-    await ctx.send(output[0])
+        await ctx.send(output[0])
+
+    except Exception as e:
+        await ctx.send(f"Error: {e}")
 
 bot.run(os.getenv("TOKEN"))
