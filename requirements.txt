@@ -1,3 +1,4 @@
 discord.py
 replicate
+Pillow
 requests
