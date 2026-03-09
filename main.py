@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 import os
+import replicate
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -18,15 +19,22 @@ async def ping(ctx):
 @bot.command()
 async def remix(ctx):
     if len(ctx.message.attachments) < 2:
-        await ctx.send("Send 2 images with the command.")
+        await ctx.send("Attach 2 images with the command.")
         return
 
     img1 = ctx.message.attachments[0].url
     img2 = ctx.message.attachments[1].url
 
-    print("Image 1:", img1)
-    print("Image 2:", img2)
+    await ctx.send("Generating AI remix... 🎨")
 
-    await ctx.send("Mixing images... 🎨")
+    output = replicate.run(
+        "stability-ai/sdxl",
+        input={
+            "image": img1,
+            "prompt": f"make this image look like the style of {img2}"
+        }
+    )
+
+    await ctx.send(output[0])
 
 bot.run(os.getenv("TOKEN"))
