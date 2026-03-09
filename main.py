@@ -16,3 +16,13 @@ async def ping(ctx):
     await ctx.send("Pong!")
 
 bot.run(os.getenv("TOKEN"))
+@bot.command()
+async def remix(ctx):
+    if len(ctx.message.attachments) < 2:
+        await ctx.send("Send 2 images with the command.")
+        return
+
+    img1 = ctx.message.attachments[0].url
+    img2 = ctx.message.attachments[1].url
+
+    await ctx.send("Mixing images... 🎨")
