@@ -2,6 +2,9 @@ import discord
 from discord.ext import commands
 import os
 import replicate
+import requests
+from PIL import Image
+from io import BytesIO
 
 TOKEN = os.getenv("TOKEN")
 
@@ -10,11 +13,38 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# ---------------- GRID CREATOR ---------------- #
+
+def create_grid(image_urls):
+
+    images = []
+
+    for url in image_urls:
+        response = requests.get(url)
+        img = Image.open(BytesIO(response.content))
+        images.append(img)
+
+    w, h = images[0].size
+
+    grid = Image.new("RGB", (w*2, h*2))
+
+    grid.paste(images[0], (0,0))
+    grid.paste(images[1], (w,0))
+    grid.paste(images[2], (0,h))
+    grid.paste(images[3], (w,h))
+
+    path = "grid.jpg"
+    grid.save(path)
+
+    return path
+
+
 # ---------------- READY ---------------- #
 
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}")
+
 
 # ---------------- MIDJOURNEY BUTTON VIEW ---------------- #
 
@@ -103,8 +133,10 @@ class GridButtons(discord.ui.View):
             )
             images.append(output[0])
 
-        for img in images:
-            await interaction.followup.send(img)
+        grid_path = create_grid(images)
+
+        await interaction.followup.send(file=discord.File(grid_path))
+
 
 # ---------------- HELP ---------------- #
 
@@ -114,9 +146,9 @@ async def helpai(ctx):
     help_text = """
 🤖 AI IMAGE BOT COMMANDS
 
-!imagine <prompt> (fast generation)
+!imagine <prompt> (fast)
 
-!imaginehq <prompt> (highest quality)
+!imaginehq <prompt> (10x quality)
 
 !mix <prompt> (attach 2 images)
 
@@ -133,11 +165,13 @@ async def helpai(ctx):
 
     await ctx.send(help_text)
 
+
 # ---------------- PING ---------------- #
 
 @bot.command()
 async def ping(ctx):
     await ctx.send("Pong! 🏓")
+
 
 # ---------------- IMAGINE ---------------- #
 
@@ -155,12 +189,14 @@ async def imagine(ctx, *, prompt):
         )
         images.append(output[0])
 
-    for img in images:
-        await ctx.send(img)
+    grid_path = create_grid(images)
+
+    await ctx.send(file=discord.File(grid_path))
 
     await ctx.send("Options:", view=GridButtons(prompt, images))
 
-# ---------------- HIGH QUALITY GENERATION ---------------- #
+
+# ---------------- HIGH QUALITY ---------------- #
 
 @bot.command()
 async def imaginehq(ctx, *, prompt):
@@ -182,8 +218,10 @@ async def imaginehq(ctx, *, prompt):
 
         images.append(output[0])
 
-    for img in images:
-        await ctx.send(img)
+    grid_path = create_grid(images)
+
+    await ctx.send(file=discord.File(grid_path))
+
 
 # ---------------- MIX ---------------- #
 
@@ -210,6 +248,7 @@ async def mix(ctx, *, prompt):
 
     await ctx.send(output[0])
 
+
 # ---------------- IMAGE EDIT ---------------- #
 
 @bot.command()
@@ -233,6 +272,7 @@ async def accurateedit(ctx, *, prompt):
     )
 
     await ctx.send(output[0])
+
 
 # ---------------- FACE EDIT ---------------- #
 
@@ -258,6 +298,7 @@ async def editface(ctx, *, prompt):
 
     await ctx.send(output[0])
 
+
 # ---------------- FACE SWAP ---------------- #
 
 @bot.command()
@@ -282,6 +323,7 @@ async def faceswap(ctx):
 
     await ctx.send(output)
 
+
 # ---------------- UPSCALE ---------------- #
 
 @bot.command()
@@ -304,6 +346,7 @@ async def upscale(ctx):
     )
 
     await ctx.send(output)
+
 
 # ---------------- RUN BOT ---------------- #
 
