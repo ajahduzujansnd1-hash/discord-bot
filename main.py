@@ -24,5 +24,9 @@ async def remix(ctx):
     img1 = ctx.message.attachments[0].url
     img2 = ctx.message.attachments[1].url
 
+    print("Image 1:", img1)
+    print("Image 2:", img2)
+
     await ctx.send("Mixing images... 🎨")
-    bot.run(os.getenv("TOKEN"))
+
+bot.run(os.getenv("TOKEN"))
